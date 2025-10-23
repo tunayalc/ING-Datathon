@@ -1,91 +1,93 @@
-# ING Datathon - Churn Tahmin Projesi
+# ING Datathon - Churn Prediction Project
 
-Bu proje, ING Datathon kapsamında müşterilerin bankayı terk etme olasılığını (churn) tahmin etmeye yönelik olarak hazırlanmıştır. Amaç, geçmiş müşteri davranışlarını analiz ederek hangi müşterilerin risk altında olduğunu öngörmektir.
+This project was prepared as part of the ING Datathon to predict the likelihood of customers leaving the bank (churn).  
+The goal is to analyze past customer behavior and predict which customers are at risk.
 
-## 1. Projenin Amacı
+## 1. Project Objective
 
-- Müşteri verilerini analiz ederek churn olasılığını tahmin etmek  
-- Zaman serisi müşteri hareketlerinden anlamlı özellikler üretmek  
-- CatBoost ve LightGBM modelleri ile tahmin algoritmaları geliştirmek  
-- Modelleri birleştirerek (ensemble) daha kararlı sonuçlar elde etmek  
+- Analyze customer data to predict churn probability  
+- Generate meaningful features from time series customer activity  
+- Develop prediction algorithms using CatBoost and LightGBM models  
+- Combine models (ensemble) to obtain more stable results  
 
-## 2. Kullanılan Veri Yapısı
+## 2. Data Structure
 
-Proje yapısı ve verilerin içeriği paylaşılmamaktadır. Bu bölüm yalnızca bilgi vermek amacıyla hazırlanmıştır.
+The project structure and data contents are not shared. This section is for informational purposes only.
 
-- **Müşteri Bilgileri:** Yaş, cinsiyet, il, çalışma sektörü vb.  
-- **Müşteri Geçmiş İşlemleri:** Aylık kredi kartı harcamaları, EFT işlemleri, aktif ürün sayısı vb.  
-- **Churn Hedef Bilgisi:** Müşterinin ilgili ay sonunda bankayı terk edip etmediği bilgisi  
+- **Customer Information:** Age, gender, province, employment sector, etc.  
+- **Customer Historical Transactions:** Monthly credit card spending, EFT transactions, number of active products, etc.  
+- **Churn Target Variable:** Whether the customer left the bank by the end of the respective month  
 
-## 3. Özellik Mühendisliği (Feature Engineering)
+## 3. Feature Engineering
 
-Aşağıdaki yapılar müşteri geçmiş verileri üzerinden türetilmiştir:
+The following features were derived from customer historical data:
 
-- Toplam işlem sayısı ve işlem tutarları  
-- Mobil ve kredi kartı işlemleri için ortalama tutarlar  
-- Lag özellikleri (1-6 ay gecikmeli geçmiş değerler)  
-- Delta özellikleri (mevcut ay - önceki ay farkı)  
-- Rolling window (3, 6, 12 aylık ortalama, toplam, standart sapma)  
-- EWMA ve EWMSTD (ağırlıklı hareketli ortalamalar)  
-- Kanal oranları (mobil işlem payı, kredi kartı işlem payı)  
-- Ürün başına işlem tutarı ve işlem adedi  
+- Total transaction count and amounts  
+- Average amounts for mobile and credit card transactions  
+- Lag features (1–6 months of historical values)  
+- Delta features (current month − previous month difference)  
+- Rolling window (3, 6, 12-month averages, sums, standard deviations)  
+- EWMA and EWMSTD (exponentially weighted moving averages)  
+- Channel ratios (mobile transaction share, credit card transaction share)  
+- Transaction amount and count per product  
 
-Bu işlemler `compute_history_features()` fonksiyonu ile gerçekleştirilmiştir.
+These processes were implemented via the `compute_history_features()` function.
 
-## 4. Veri Birleştirme ve Hazırlık
+## 4. Data Integration and Preparation
 
-- Tarih bilgisi aylık periyotlara dönüştürülmüştür  
-- İşlem geçmişi referans tarihler ile eşleştirilmiştir  
-- Müşteri demografik bilgileri veri setine eklenmiştir  
-- Eksik veriler doldurulmuş, kategorik değişkenler düzenlenmiştir  
+- Date information was converted into monthly periods  
+- Historical transaction data was matched with reference dates  
+- Customer demographic information was merged into the dataset  
+- Missing values were filled, and categorical variables were standardized  
 
-Bu işlemler `build_dataset()` fonksiyonu ile yapılmıştır.
+These operations were handled using the `build_dataset()` function.
 
 ## 5. Target Encoding (OOF)
 
-Bilgi sızıntısını engellemek için kategorik değişkenlere Out-of-Fold (OOF) target encoding uygulanmıştır.  
-`oof_target_encode()` fonksiyonu kullanılmıştır.
+To prevent data leakage, categorical features were encoded using Out-of-Fold (OOF) target encoding.  
+The `oof_target_encode()` function was used for this process.
 
-## 6. Kullanılan Modeller
+## 6. Models Used
 
-İki farklı model yapısı kullanılmıştır:
+Two different model architectures were employed:
 
-| Model     | Açıklama |
-|-----------|----------|
-| CatBoost  | Kategorik verilerde başarılı, GPU destekli kullanılmıştır |
-| LightGBM  | Hızlı, güçlü karar ağacı tabanlı model, GPU modunda çalıştırılmıştır |
+| Model     | Description |
+|-----------|--------------|
+| **CatBoost**  | Performs well on categorical data; used with GPU support |
+| **LightGBM**  | Fast, powerful tree-based model; used in GPU mode |
 
-Her iki modelde de:
-- Stratified K-Fold çapraz doğrulama  
-- Erken durdurma (early stopping)  
-- Parametre grid araması  
-- `scale_pos_weight` ile sınıf dengesizliği yönetimi uygulanmıştır
+Both models included:
 
-## 7. Ensemble (Model Birleştirme)
+- Stratified K-Fold cross-validation  
+- Early stopping  
+- Parameter grid search  
+- `scale_pos_weight` to handle class imbalance  
 
-CatBoost ve LightGBM tahminleri ağırlıklı olarak birleştirilmiştir:
-final_prediction = w * CatBoost + (1 - w) * LightGBM
+## 7. Ensemble (Model Blending)
 
+CatBoost and LightGBM predictions were combined using a weighted approach:  
+`final_prediction = w * CatBoost + (1 - w) * LightGBM`
 
-Ağırlıklar, özel değerlendirme metriğine göre seçilmiştir.
+The weights were selected based on the custom evaluation metric.
 
-## 8. Değerlendirme Metrikleri
+## 8. Evaluation Metrics
 
-| Metrik     | Tanım |
-|------------|-------|
-| AUC        | Modelin genel ayrıştırma gücü |
-| Gini       | 2 × AUC − 1 |
-| Lift@10%   | En riskli %10'luk müşteri grubunda gerçekleşen churn oranı |
-| Recall@10% | Gerçek churn müşterilerinin yüzde kaçının bu grupta yer aldığı |
-| Custom Score | 0.40 × Gini + 0.30 × Lift + 0.30 × Recall |
+| Metric     | Definition |
+|------------|-------------|
+| **AUC**        | Model’s overall discriminatory power |
+| **Gini**       | 2 × AUC − 1 |
+| **Lift@10%**   | Churn rate among the top 10% most risky customers |
+| **Recall@10%** | Percentage of true churn customers captured in that top 10% |
+| **Custom Score** | 0.40 × Gini + 0.30 × Lift + 0.30 × Recall |
 
-## 9. Sonuç
+## 9. Results
 
-- Zaman serisi tabanlı özellik mühendisliği churn tahmin performansını geliştirmiştir  
-- CatBoost ve LightGBM birlikte kullanıldığında tek modele göre daha istikrarlı sonuç vermiştir  
-- Target encoding, kategorik değişkenlerde bilgi sızıntısını önleyerek daha doğru tahmin sağlamıştır  
-- Ensemble yaklaşımı özel skor metriğinde en yüksek performansı vermiştir  
+- Time series–based feature engineering improved churn prediction performance  
+- Combining CatBoost and LightGBM resulted in more stable outcomes than single models  
+- Target encoding prevented information leakage and improved accuracy on categorical data  
+- The ensemble approach achieved the highest performance on the custom score metric  
 
 ---
 
-Bu README, yalnızca proje yaklaşımını açıklamak amacıyla hazırlanmıştır. Veri ve kod paylaşımı içermez.
+This README was prepared solely to explain the project approach.  
+It does not include data or code sharing.
